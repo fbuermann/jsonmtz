@@ -58,5 +58,6 @@ int json_array_check_dimensions(const json_t *json, const int *dim, int len);
 int json_array_check_dimensions_f(const json_t *json, const int *dim, int len, int (*inner_check_function)(const json_t *json));
 int json_truth(const json_t *);
 char *makeTimestamp(const char *jobstring, const char *datestring, char *timestamp);
+char *stringtrimn(const char *str, int len);
 
 #endif

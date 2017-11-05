@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.0.0)
-project(jsonmtz VERSION 1.0.1)
+project(jsonmtz VERSION 1.0.2)
 
 add_subdirectory(jansson)
 
-include_directories("${PROJECT_SOURCE_DIR}/include")
+include_directories("${PROJECT_BINARY_DIR}/include")
 include_directories("${PROJECT_SOURCE_DIR}/ccp4io")
 include_directories("${PROJECT_BINARY_DIR}/jansson/include")
 
-configure_file("${PROJECT_SOURCE_DIR}/include/jsonmtz.in.h" "${PROJECT_SOURCE_DIR}/include/jsonmtz.h")
+configure_file("${PROJECT_SOURCE_DIR}/include/jsonmtz.in.h" "${PROJECT_BINARY_DIR}/include/jsonmtz.h")
 
 add_executable(mtz2json mtz2json.c)
 set_property(TARGET mtz2json PROPERTY C_STANDARD 99)

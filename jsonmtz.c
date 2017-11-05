@@ -172,6 +172,31 @@ int json2mtz(const char *file_in, const char *file_out, const options_json2mtz *
 }
 
 /**
+ * Trims trailing whitespaces from a string and adds a null terminator.
+ * @param[in] str The string.
+ * @param[in] len The string length (including null terminator).
+ * @return The string
+ */
+
+char *stringtrimn(const char *str, int len)
+{
+    char *start = malloc((len + 1) * sizeof(char));
+    char *end = start + len;
+    memset(start, '\0', len + 1);
+
+    strncpy(start, str, len);
+
+    while (*end == '\0' || *end == ' ')
+    {
+        end--;
+    }
+
+    *(end + 1) = '\0';
+
+    return start;
+}
+
+/**
  * Reads an MTZ struct into a json object and returns a pointer to that object.
  * @param[in] mtzin The MTZ struct.
  * @return Pointer to json_t object.
@@ -185,7 +210,8 @@ json_t *readMtz(const MTZ *mtzin)
     MTZBAT *batch = NULL;
     int order[5] = {0};
     json_t *jorder = json_array();
-    json_t *junknown_headers = NULL;
+    json_t *junknown_headers = json_array();
+    json_t *jhist = json_array();
 
     // Read crystals
     for (int i = 0; i < mtzin->nxtal; i++)
@@ -208,6 +234,15 @@ json_t *readMtz(const MTZ *mtzin)
         }
     }
 
+    // Read history
+    for (int i = 0; i < mtzin->histlines; i++)
+    {
+        char *line;
+        line = stringtrimn(mtzin->hist + i * MTZRECORDLENGTH, MTZRECORDLENGTH);
+        json_array_append_new(jhist, json_string(line));
+        free(line);
+    }
+
     // Read sort order
     for (int i = 0; i < 5; i++)
     {
@@ -220,24 +255,23 @@ json_t *readMtz(const MTZ *mtzin)
     // Read unknown headers
     if (mtzin->n_unknown_headers)
     {
-        junknown_headers = json_stringn(mtzin->unknown_headers, mtzin->n_unknown_headers * MTZRECORDLENGTH / 2);
+        for (int i = 0; i < mtzin->n_unknown_headers / 2; i++) // Bug in cmtzlib? Headers duplicate if not divided by 2.
+        {
+            char *line;
+            line = stringtrimn(mtzin->unknown_headers + i * MTZRECORDLENGTH, MTZRECORDLENGTH);
+            json_array_append_new(junknown_headers, json_string(line));
+            free(line);
+        }
     }
 
     // Populate object
     json_object_set_new(jsonmtz, "Title", json_string(mtzin->title));
-    if (mtzin->histlines)
-    {
-        json_object_set_new(jsonmtz, "History", json_stringn(mtzin->hist, MTZRECORDLENGTH * mtzin->histlines));
-    }
-    else
-    {
-        json_object_set_new(jsonmtz, "History", json_string(""));
-    }
+    json_object_set_new(jsonmtz, "History", jhist);
     json_object_set_new(jsonmtz, "Crystals", jsonxtals);
     json_object_set_new(jsonmtz, "Symmetry", readMtzSymmetry(mtzin->mtzsymm));
     json_object_set_new(jsonmtz, "Batches", jsonbatches);
     json_object_set_new(jsonmtz, "SortOrder", jorder);
-    junknown_headers ? json_object_set_new(jsonmtz, "UnknownHeaders", junknown_headers) : 0;
+    json_object_set_new(jsonmtz, "UnknownHeaders", junknown_headers);
 
     return jsonmtz;
 }
@@ -1245,11 +1279,11 @@ MTZ *makeMtz(json_t *json)
     MTZ *mtzout = NULL;
     json_t *jtitle = NULL;
     json_t *jcrystals = NULL;
-    json_t *jhistory = NULL;
+    json_t *jhistory = json_array();
     json_t *jsymm = NULL;
     json_t *jbatches = NULL;
     json_t *jsort = NULL;
-    json_t *junknown_headers = NULL;
+    json_t *junknown_headers = json_array();
     int ncryst = 0;
     int *nsets = NULL;
     int **ncols = NULL;
@@ -1265,11 +1299,11 @@ MTZ *makeMtz(json_t *json)
                 "{s:o, s:o, s:o, s:o, s:o, s:o, s?o}",
                 "Title", &jtitle,                     // json_string
                 "Crystals", &jcrystals,               // json_array
-                "History", &jhistory,                 // json_string
+                "History", &jhistory,                 // json_array
                 "Symmetry", &jsymm,                   // json_object
                 "Batches", &jbatches,                 // json_array
                 "SortOrder", &jsort,                  //json_array
-                "UnknownHeaders", &junknown_headers); // json_string
+                "UnknownHeaders", &junknown_headers); // json_array
 
     if (jcrystals && json_is_array(jcrystals) && json_array_size(jcrystals) != 0 && json_array_is_homogenous_object(jcrystals))
     {
@@ -1415,15 +1449,14 @@ MTZ *makeMtz(json_t *json)
             jtitle &&json_is_string(jtitle) ? snprintf(mtzout->title, 71, "%s", json_string_value(jtitle)) : 0;
 
             // Set history
-            if (jhistory && json_is_string(jhistory))
+            if (jhistory && json_is_array(jhistory) && json_array_is_homogenous_string(jhistory))
             {
-                mtzout->histlines = (int)ceil((double)(json_string_length(jhistory)) / MTZRECORDLENGTH);
+                mtzout->histlines = json_array_size(jhistory);
                 mtzout->hist = MtzCallocHist(mtzout->histlines);
-                strncpy(mtzout->hist, json_string_value(jhistory), mtzout->histlines * MTZRECORDLENGTH);
-                // Pad with whitespace
-                for (int i = json_string_length(jhistory); i < mtzout->histlines * MTZRECORDLENGTH; i++)
+
+                for (int i = 0; i < mtzout->histlines; i++)
                 {
-                    mtzout->hist[i] = ' ';
+                    strncpy(mtzout->hist + i * MTZRECORDLENGTH, json_string_value(json_array_get(jhistory, i)), MTZRECORDLENGTH);
                 }
             }
 
@@ -1446,15 +1479,13 @@ MTZ *makeMtz(json_t *json)
             }
 
             // Set unknown headers
-            if (junknown_headers && json_is_string(junknown_headers))
+            if (junknown_headers && json_is_array(junknown_headers) && json_array_is_homogenous_string(junknown_headers))
             {
-                mtzout->n_unknown_headers = (int)ceil((double)(json_string_length(junknown_headers)) / MTZRECORDLENGTH);
+                mtzout->n_unknown_headers = json_array_size(junknown_headers);
                 mtzout->unknown_headers = malloc(mtzout->n_unknown_headers * MTZRECORDLENGTH * sizeof(char));
-                strncpy(mtzout->unknown_headers, json_string_value(junknown_headers), mtzout->n_unknown_headers * MTZRECORDLENGTH);
-                // Pad with whitespace
-                for (int i = json_string_length(junknown_headers); i < mtzout->n_unknown_headers * MTZRECORDLENGTH; i++)
+                for (int i = 0; i < mtzout->n_unknown_headers; i++)
                 {
-                    mtzout->unknown_headers[i] = ' ';
+                    strncpy(mtzout->unknown_headers + i * MTZRECORDLENGTH, json_string_value(json_array_get(junknown_headers, i)), MTZRECORDLENGTH);
                 }
             }
         }
