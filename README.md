@@ -12,8 +12,10 @@ __jsonmtz__ can easily be used as a C library.
 
 Example usage
 -------------
-$ mtz2json _in.mtz_ _out.json_  
-$ json2mtz _in.json_ _out.mtz_
+```shell
+$ mtz2json in.mtz out.json  
+$ json2mtz in.json out.mtz
+```
 
 Building from Source
 --------------------
