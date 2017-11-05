@@ -19,7 +19,7 @@
  * This program can be used to interconvert between the binary reflection file
  * format MTZ, commonly used in X-ray crystallography, and the widespread
  * human-readable data exchange format JSON. The program contains two executables.
- * jmtz2json converts MTZ reflection files to JSON format, and json2mtz does the
+ * mtz2json converts MTZ reflection files to JSON format, and json2mtz does the
  * reverse. jsonmtz can easily be used as a C library. 
  * This program contains two executables. mtz2json converts MTZ files to 
  * JSON format, and json2mtz does the reverse.
