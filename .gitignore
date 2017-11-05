@@ -1,0 +1,14 @@
+build/
+.vscode/
+html/
+latex/
+.DS_Store
+*/.DS_Store
+*.tex
+*~
+*.swp
+*.bat
+Makefile
+*.sty
+jsonmtz.h
+jansson.h
