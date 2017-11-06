@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
         case 'f':
             opts.force = 1;
         case '?':
-            fprintf(stderr, "%s", "\njson2mtz --help\n\n");
+            fprintf(stderr, "%s", "json2mtz --help\n");
             return 1;
         }
     }
@@ -85,13 +85,13 @@ int main(int argc, char *argv[])
 
     if (opts.version)
     {
-        printf("\njson2mtz v%d.%d.%d\n\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+        printf("json2mtz v%d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
         exit(0);
     }
 
     if (argc - optind != 2)
     {
-        fprintf(stderr, "%s", "\njson2mtz --help\n\n");
+        fprintf(stderr, "%s", "json2mtz --help\n");
         return 1;
     }
 
@@ -111,10 +111,10 @@ int main(int argc, char *argv[])
         puts(argv[optind + 1]);
         return 0;
     case 1:
-        fprintf(stderr, "%s", "Unable to read JSON file.");
+        fprintf(stderr, "%s", "Unable to read JSON file.\n");
         return 1;
     case 2:
-        fprintf(stderr, "%s", "Unable to convert to MTZ file / write MTZ file.");
+        fprintf(stderr, "%s", "Unable to convert to MTZ file / write MTZ file.\n");
         return 1;
     }
 }

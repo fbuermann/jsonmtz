@@ -70,7 +70,7 @@
  * @param[in] file_in The input MTZ file.
  * @param[in] file_out The ouptut JSON file.
  * @param[in] opts Options struct.
- * @return 0 on success, 1 on failure.
+ * @return 0 on success, error code on failure.
  */
 
 int mtz2json(const char *file_in, const char *file_out, const options_mtz2json *opts)
@@ -85,9 +85,9 @@ int mtz2json(const char *file_in, const char *file_out, const options_mtz2json *
     int ret;
     int format = JSON_INDENT(4);
 
-    if (access(file_in, F_OK | R_OK) == -1) // Input not readable
+    if (access(file_in, F_OK | R_OK) == -1)
     {
-        return 2;
+        return 2; // Input not readable
     }
 
     mtzin = MtzGet(file_in, 1);
@@ -116,7 +116,7 @@ int mtz2json(const char *file_in, const char *file_out, const options_mtz2json *
     ret = json_dump_file(jsonmtz, file_out, format | JSON_COMPACT);
     json_decref(jsonmtz);
 
-    return ret;
+    return ret; // 0 on success, -1 on failure
 }
 
 /**

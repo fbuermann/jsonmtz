@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
         case 'f':
             opts.force = 1;
         case '?':
-            fprintf(stderr, "%s", "\nmtz2json --help\n\n");
+            fprintf(stderr, "%s", "mtz2json --help\n");
             return 1;
         }
     }
@@ -92,13 +92,13 @@ int main(int argc, char *argv[])
 
     if (opts.version)
     {
-        printf("\nmtz2json v%d.%d.%d\n\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+        printf("mtz2json v%d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
         exit(0);
     }
 
     if (argc - optind != 2)
     {
-        fprintf(stderr, "%s", "\nmtz2json --help\n\n");
+        fprintf(stderr, "%s", "mtz2json --help\n");
         return 1;
     }
 
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        fprintf(stderr, "%s", "$Failed\n");
+        fprintf(stderr, "%s", "Failed.\n");
         return 1;
     }
 }
