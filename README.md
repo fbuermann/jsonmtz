@@ -43,6 +43,13 @@ $ cmake -G "MinGW Makefiles" ..
 $ mingw32-make
 ```
 
+Dependencies
+------------
+
+__jsonmtz__ depends on the [Jansson](http://www.digip.org/jansson/) and
+[CCP4io](http://www.ccp4.ac.uk/) libraries. They are included in the source
+tree.
+
 Use as a (static) library
 -------------------------
 
