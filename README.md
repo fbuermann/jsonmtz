@@ -57,7 +57,7 @@ The functions _mtz2json()_ and _json2mtz()_ are the main API.
 Source code documentation
 -------------------------
 
-Source code documentation can be extracted with [Doxygen](www.doxygen.org):  
+Source code documentation can be extracted with [Doxygen](http://www.doxygen.org/):  
 ```shell
 $ doxygen Doxyfile
 ```
