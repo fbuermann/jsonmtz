@@ -91,6 +91,11 @@ int mtz2json(const char *file_in, const char *file_out, const options_mtz2json *
     }
 
     mtzin = MtzGet(file_in, 1);
+    if (!mtzin)
+    {
+        return 2; // Input not readable
+    }
+
     MtzAssignHKLtoBase(mtzin);
 
     // Add timestamp
