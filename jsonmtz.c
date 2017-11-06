@@ -62,6 +62,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <unistd.h>
 #include "jsonmtz.h"
 
 /**
@@ -83,6 +84,11 @@ int mtz2json(const char *file_in, const char *file_out, const options_mtz2json *
     char jobstring[57];
     int ret;
     int format = JSON_INDENT(4);
+
+    if (access(file_in, F_OK | R_OK) == -1) // Input not readable
+    {
+        return 2;
+    }
 
     mtzin = MtzGet(file_in, 1);
     MtzAssignHKLtoBase(mtzin);
