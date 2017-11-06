@@ -117,13 +117,13 @@ int main(int argc, char *argv[])
         printf("%s\n", argv[optind + 1]);
         return 0;
     }
+
     if (ret == 2)
     {
-        puts("No such file.");
-    }
-    else
-    {
-        fprintf(stderr, "%s", "Failed.\n");
+        fprintf(stderr, "%s", "Unable to read MTZ file.\n");
         return 1;
     }
+
+    fprintf(stderr, "%s", "Failed.\n");
+    return 1;
 }

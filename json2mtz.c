@@ -116,5 +116,8 @@ int main(int argc, char *argv[])
     case 2:
         fprintf(stderr, "%s", "Unable to convert to MTZ file / write MTZ file.\n");
         return 1;
+    default:
+        fprintf(stderr, "%s", "Failed.\n");
+        return 1;
     }
 }
