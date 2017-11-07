@@ -3,7 +3,7 @@
  * 
  * Copyright (c) 2017 Frank Buermann <fburmann@mrc-lmb.cam.ac.uk>
  * 
- * mtz2json is free software; you can redistribute it and/or modify
+ * jsonmtz is free software; you can redistribute it and/or modify
  * it under the terms of the MIT license. See LICENSE for details.
  * This software makes use of the jansson library (http://www.digip.org/jansson/)
  * licensed under the terms of the MIT license,

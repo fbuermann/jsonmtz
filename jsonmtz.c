@@ -3,7 +3,7 @@
  * 
  * Copyright (c) 2017 Frank Buermann <fburmann@mrc-lmb.cam.ac.uk>
  * 
- * mtz2json is free software; you can redistribute it and/or modify
+ * jsonmtz is free software; you can redistribute it and/or modify
  * it under the terms of the MIT license. See LICENSE for details.
  * This software makes use of the jansson library (http://www.digip.org/jansson/)
  * licensed under the terms of the MIT license,
@@ -168,7 +168,11 @@ int json2mtz(const char *file_in, const char *file_out, const options_json2mtz *
         timestring = ctime(&current_time);
         makeTimestamp(jobstring, timestring, timestamp);
         hist = MtzCallocHist(mtzout->histlines + 1);
-        strncpy(hist, mtzout->hist, MTZRECORDLENGTH * mtzout->histlines);
+        for (int i = 0; i < mtzout->histlines * MTZRECORDLENGTH; i++)
+        {
+            hist[i] = mtzout->hist[i];
+        }
+        //strncpy(hist, mtzout->hist, MTZRECORDLENGTH * mtzout->histlines);
         strncpy(hist + MTZRECORDLENGTH * mtzout->histlines, timestamp, MTZRECORDLENGTH);
         MtzFreeHist(mtzout->hist);
         mtzout->hist = hist;
@@ -266,7 +270,7 @@ json_t *readMtz(const MTZ *mtzin)
     // Read unknown headers
     if (mtzin->n_unknown_headers)
     {
-        for (int i = 0; i < mtzin->n_unknown_headers / 2; i++) // Bug in cmtzlib? Headers duplicate if not divided by 2.
+        for (int i = 0; i < mtzin->n_unknown_headers; i++)
         {
             char *line;
             line = stringtrimn(mtzin->unknown_headers + i * MTZRECORDLENGTH, MTZRECORDLENGTH);
@@ -515,7 +519,6 @@ json_t *readMtzXtal(const MTZXTAL *xtal, int nref, const MTZ *mtzin)
 
     // Populate object
     json_object_set_new(jsonxtal, "CrystalName", json_string(xtal->xname));
-    json_object_set_new(jsonxtal, "CrystalID", json_integer(xtal->xtalid));
     json_object_set_new(jsonxtal, "CellConstants", cell);
     json_object_set_new(jsonxtal, "ProjectName", json_string(xtal->pname));
     json_object_set_new(jsonxtal, "ResolutionMax", json_real(xtal->resmax));
@@ -1158,7 +1161,6 @@ MTZ *setMtzXtals(MTZ *mtzout, const json_t *jcrystals)
         json_t *jresmax = NULL;
         json_t *jxname = NULL;
         json_t *jpname = NULL;
-        json_t *jxtalid = NULL;
         json_t *jsets = NULL;
         json_t *setvalue = NULL;
         int setindex;
@@ -1168,7 +1170,6 @@ MTZ *setMtzXtals(MTZ *mtzout, const json_t *jcrystals)
         json_unpack(crystalvalue, "{s:o}", "ResolutionMax", &jresmax);
         json_unpack(crystalvalue, "{s:o}", "CrystalName", &jxname);
         json_unpack(crystalvalue, "{s:o}", "ProjectName", &jpname);
-        json_unpack(crystalvalue, "{s:o}", "CrystalID", &jxtalid);
         json_unpack(crystalvalue, "{s:o}", "Datasets", &jsets);
 
         if (jcell && json_is_array(jcell) && json_array_is_homogenous_real(jcell))
@@ -1183,7 +1184,6 @@ MTZ *setMtzXtals(MTZ *mtzout, const json_t *jcrystals)
         jresmax &&json_is_real(jresmax) ? mtzout->xtal[crystalindex]->resmax = json_real_value(jresmax) : 0;
         jxname &&json_is_string(jxname) ? snprintf(mtzout->xtal[crystalindex]->xname, 65, "%s", json_string_value(jxname)) : 0;
         jpname &&json_is_string(jpname) ? snprintf(mtzout->xtal[crystalindex]->pname, 65, "%s", json_string_value(jpname)) : 0;
-        jxtalid &&json_is_integer(jxtalid) ? mtzout->xtal[crystalindex]->xtalid = json_integer_value(jxtalid) : 0;
         if (jsets && json_is_array(jsets) && json_array_is_homogenous_object(jsets))
         {
             json_array_foreach(jsets, setindex, setvalue)
@@ -1307,7 +1307,7 @@ MTZ *makeMtz(json_t *json)
     int structure_error = 0;
 
     json_unpack(json,
-                "{s:o, s:o, s:o, s:o, s:o, s:o, s?o}",
+                "{s:o, s:o, s:o, s:o, s:o, s:o, s:o}",
                 "Title", &jtitle,                     // json_string
                 "Crystals", &jcrystals,               // json_array
                 "History", &jhistory,                 // json_array
@@ -1494,9 +1494,17 @@ MTZ *makeMtz(json_t *json)
             {
                 mtzout->n_unknown_headers = json_array_size(junknown_headers);
                 mtzout->unknown_headers = malloc(mtzout->n_unknown_headers * MTZRECORDLENGTH * sizeof(char));
+                memset(mtzout->unknown_headers, '\0', mtzout->n_unknown_headers * MTZRECORDLENGTH);
+
                 for (int i = 0; i < mtzout->n_unknown_headers; i++)
                 {
-                    strncpy(mtzout->unknown_headers + i * MTZRECORDLENGTH, json_string_value(json_array_get(junknown_headers, i)), MTZRECORDLENGTH);
+                    const char *header;
+                    header = json_string_value(json_array_get(junknown_headers, i));
+
+                    for (int j = 0; j < MTZRECORDLENGTH; j++)
+                    {
+                        mtzout->unknown_headers[i * MTZRECORDLENGTH + j] = header[j];
+                    }
                 }
             }
         }
