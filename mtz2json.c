@@ -18,10 +18,10 @@
 
 int main(int argc, char *argv[])
 {
-    int ret;
+    uint8_t ret;
 
     int o;
-    options_mtz2json opts;
+    options_mtz2json_t opts;
     opterr = 0;
 
     opts.compact = 0;

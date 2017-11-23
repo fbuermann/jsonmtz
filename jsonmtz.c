@@ -64,6 +64,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "jsonmtz.h"
+#include "ccp4_utils.h"
 
 /**
  * Converts an MTZ reflection file to a JSON file.
@@ -73,7 +74,7 @@
  * @return 0 on success, error code on failure.
  */
 
-int mtz2json(const char *file_in, const char *file_out, const options_mtz2json *opts)
+uint8_t mtz2json(const char *file_in, const char *file_out, const options_mtz2json_t *opts)
 {
     MTZ *mtzin = NULL;
     json_t *jsonmtz = NULL;
@@ -82,8 +83,8 @@ int mtz2json(const char *file_in, const char *file_out, const options_mtz2json *
     char *hist = NULL;
     char timestamp[80];
     char jobstring[57];
-    int ret;
-    int format = JSON_INDENT(4);
+    uint8_t ret;
+    size_t format = JSON_INDENT(4);
 
     if (access(file_in, F_OK | R_OK) == -1)
     {
@@ -132,7 +133,7 @@ int mtz2json(const char *file_in, const char *file_out, const options_mtz2json *
  * @return 0 for success, other error codes for failure.
  */
 
-int json2mtz(const char *file_in, const char *file_out, const options_json2mtz *opts)
+uint8_t json2mtz(const char *file_in, const char *file_out, const options_json2mtz_t *opts)
 {
     MTZ *mtzout = NULL;
     json_t *json;
@@ -142,7 +143,7 @@ int json2mtz(const char *file_in, const char *file_out, const options_json2mtz *
     char *hist = NULL;
     char timestamp[80];
     char jobstring[57];
-    int ret;
+    uint8_t ret;
 
     json = json_load_file(file_in, 0, &err);
 
@@ -168,7 +169,7 @@ int json2mtz(const char *file_in, const char *file_out, const options_json2mtz *
         timestring = ctime(&current_time);
         makeTimestamp(jobstring, timestring, timestamp);
         hist = MtzCallocHist(mtzout->histlines + 1);
-        for (int i = 0; i < mtzout->histlines * MTZRECORDLENGTH; i++)
+        for (size_t i = 0; i < mtzout->histlines * MTZRECORDLENGTH; i++)
         {
             hist[i] = mtzout->hist[i];
         }
@@ -193,7 +194,7 @@ int json2mtz(const char *file_in, const char *file_out, const options_json2mtz *
  * @return The string
  */
 
-char *stringtrimn(const char *str, int len)
+char *stringtrimn(const char *str, size_t len)
 {
     char *start = malloc((len + 1) * sizeof(char));
     char *end = start + len;
@@ -223,13 +224,13 @@ json_t *readMtz(const MTZ *mtzin)
     json_t *jsonxtals = json_array();
     json_t *jsonbatches = json_array();
     MTZBAT *batch = NULL;
-    int order[5] = {0};
+    uint8_t order[5] = {0};
     json_t *jorder = json_array();
     json_t *junknown_headers = json_array();
     json_t *jhist = json_array();
 
     // Read crystals
-    for (int i = 0; i < mtzin->nxtal; i++)
+    for (size_t i = 0; i < mtzin->nxtal; i++)
     {
         json_array_append_new(jsonxtals, readMtzXtal(mtzin->xtal[i], mtzin->nref_filein, mtzin));
     }
@@ -250,7 +251,7 @@ json_t *readMtz(const MTZ *mtzin)
     }
 
     // Read history
-    for (int i = 0; i < mtzin->histlines; i++)
+    for (size_t i = 0; i < mtzin->histlines; i++)
     {
         char *line;
         line = stringtrimn(mtzin->hist + i * MTZRECORDLENGTH, MTZRECORDLENGTH);
@@ -259,7 +260,7 @@ json_t *readMtz(const MTZ *mtzin)
     }
 
     // Read sort order
-    for (int i = 0; i < 5; i++)
+    for (size_t i = 0; i < 5; i++)
     {
         if (mtzin->order[i])
         {
@@ -270,7 +271,7 @@ json_t *readMtz(const MTZ *mtzin)
     // Read unknown headers
     if (mtzin->n_unknown_headers)
     {
-        for (int i = 0; i < mtzin->n_unknown_headers; i++)
+        for (size_t i = 0; i < mtzin->n_unknown_headers / 2; i++) // Bug in cmtzlib? Headers duplicate if not divided by 2.
         {
             char *line;
             line = stringtrimn(mtzin->unknown_headers + i * MTZRECORDLENGTH, MTZRECORDLENGTH);
@@ -303,13 +304,13 @@ json_t *readMtzSymmetry(SYMGRP sym)
     json_t *symop = json_array();
 
     // Read symmetry operations
-    for (int i = 0; i < 192; i++)
+    for (size_t i = 0; i < 192; i++)
     {
         json_t *symopOuter = json_array();
-        for (int j = 0; j < 4; j++)
+        for (size_t j = 0; j < 4; j++)
         {
             json_t *symopInner = json_array();
-            for (int k = 0; k < 4; k++)
+            for (size_t k = 0; k < 4; k++)
             {
                 json_array_append_new(symopInner, json_real(sym.sym[i][j][k]));
             }
@@ -356,19 +357,19 @@ json_t *readMtzBatch(const MTZBAT *batch)
     json_t *umat = json_array();
 
     // Read cell dimensions
-    for (int i = 0; i < 6; i++)
+    for (size_t i = 0; i < 6; i++)
     {
         json_array_append_new(cell, json_real(batch->cell[i]));
     }
 
     // Read mosaicity
-    for (int i = 0; i < 12; i++)
+    for (size_t i = 0; i < 12; i++)
     {
         json_array_append_new(mosaicity, json_real(batch->crydat[i]));
     }
 
     // Read datum
-    for (int i = 0; i < 3; i++)
+    for (size_t i = 0; i < 3; i++)
     {
         json_array_append_new(datum, json_real(batch->datum[i]));
     }
@@ -386,7 +387,7 @@ json_t *readMtzBatch(const MTZBAT *batch)
                   batch->detlm[1][1][1]);
 
     // Read vectors
-    for (int i = 0; i < 3; i++)
+    for (size_t i = 0; i < 3; i++)
     {
         json_array_append_new(vec1, json_real(batch->e1[i]));
         json_array_append_new(vec2, json_real(batch->e2[i]));
@@ -394,13 +395,13 @@ json_t *readMtzBatch(const MTZBAT *batch)
     }
 
     // Read axes labels
-    for (int i = 0; i < 3; i++)
+    for (size_t i = 0; i < 3; i++)
     {
         json_array_append_new(axesLabels, json_string(batch->gonlab[i]));
     }
 
     // Read refinement flags for cells
-    for (int i = 0; i < 6; i++)
+    for (size_t i = 0; i < 6; i++)
     {
         json_array_append_new(cellRefineFlags, json_integer(batch->lbcell[i]));
     }
@@ -417,25 +418,25 @@ json_t *readMtzBatch(const MTZBAT *batch)
             batch->phixyz[1][2]);
 
     // Read rotation axis
-    for (int i = 0; i < 3; i++)
+    for (size_t i = 0; i < 3; i++)
     {
         json_array_append_new(rotAxis, json_real(batch->scanax[i]));
     }
 
     // Read source vector
-    for (int i = 0; i < 3; i++)
+    for (size_t i = 0; i < 3; i++)
     {
         json_array_append_new(svec, json_real(batch->so[i]));
     }
 
     // Read idealised source vector
-    for (int i = 0; i < 3; i++)
+    for (size_t i = 0; i < 3; i++)
     {
         json_array_append_new(idealsvec, json_real(batch->source[i]));
     }
 
     // Read orientation matrix
-    for (int i = 0; i < 9; i++)
+    for (size_t i = 0; i < 9; i++)
     {
         json_array_append_new(umat, json_real(batch->umat[i]));
     }
@@ -492,25 +493,25 @@ json_t *readMtzBatch(const MTZBAT *batch)
 /**
  * Reads an MTZXTAL struct into a json object and returns a pointer to that object.
  * @param[in] xtal The MTZXTAL struct.
- * @param[in] nref Number of reflextions.
+ * @param[in] nref Number of reflections.
  * @param[in] mtzin The parental MTZ struct.
  * @return Pointer to json_t object.
  */
 
-json_t *readMtzXtal(const MTZXTAL *xtal, int nref, const MTZ *mtzin)
+json_t *readMtzXtal(const MTZXTAL *xtal, size_t nref, const MTZ *mtzin)
 {
     json_t *jsonxtal = json_object();
     json_t *jsonsets = json_array();
     json_t *cell = json_array();
 
     // Read cell constants
-    for (int i = 0; i < 6; i++)
+    for (size_t i = 0; i < 6; i++)
     {
         json_array_append_new(cell, json_real(xtal->cell[i]));
     }
 
     // Read datasets
-    for (int i = 0; i < xtal->nset; i++)
+    for (size_t i = 0; i < xtal->nset; i++)
     {
         json_t *set = json_object();
         set = readMtzSet(xtal->set[i], nref, mtzin);
@@ -536,7 +537,7 @@ json_t *readMtzXtal(const MTZXTAL *xtal, int nref, const MTZ *mtzin)
  * @return Pointer to json_t array.
  */
 
-json_t *readMtzSet(const MTZSET *set, int nref, const MTZ *mtzin)
+json_t *readMtzSet(const MTZSET *set, size_t nref, const MTZ *mtzin)
 {
     json_t *jset = json_object();
     json_t *jcols = json_array();
@@ -546,14 +547,14 @@ json_t *readMtzSet(const MTZSET *set, int nref, const MTZ *mtzin)
     json_object_set_new(jset, "Wavelength", json_real(set->wavelength));
 
     // Read columns
-    for (int i = 0; i < set->ncol; i++)
+    for (size_t i = 0; i < set->ncol; i++)
     {
         MTZCOL *col = set->col[i];
         json_t *column = json_object();
         json_t *reflections = json_array();
 
         // Read reflection data
-        for (int i = 0; i < nref; i++)
+        for (size_t i = 0; i < nref; i++)
         {
             float refl = col->ref[i];
 
@@ -594,9 +595,9 @@ json_t *readMtzSet(const MTZSET *set, int nref, const MTZ *mtzin)
  * @return 1 if true, 0 if false.
  */
 
-int json_array_is_homogenous_object(const json_t *json)
+uint8_t json_array_is_homogenous_object(const json_t *json)
 {
-    for (int i = 0; i < json_array_size(json); i++)
+    for (size_t i = 0; i < json_array_size(json); i++)
     {
         if (!json_is_object(json_array_get(json, i)))
         {
@@ -612,9 +613,9 @@ int json_array_is_homogenous_object(const json_t *json)
  * @return 1 if true, 0 if false.
  */
 
-int json_array_is_homogenous_array(const json_t *json)
+uint8_t json_array_is_homogenous_array(const json_t *json)
 {
-    for (int i = 0; i < json_array_size(json); i++)
+    for (size_t i = 0; i < json_array_size(json); i++)
     {
         if (!json_is_array(json_array_get(json, i)))
         {
@@ -630,9 +631,9 @@ int json_array_is_homogenous_array(const json_t *json)
  * @return 1 if true, 0 if false.
  */
 
-int json_array_is_homogenous_string(const json_t *json)
+uint8_t json_array_is_homogenous_string(const json_t *json)
 {
-    for (int i = 0; i < json_array_size(json); i++)
+    for (size_t i = 0; i < json_array_size(json); i++)
     {
         if (!json_is_string(json_array_get(json, i)))
         {
@@ -648,9 +649,9 @@ int json_array_is_homogenous_string(const json_t *json)
  * @return 1 if true, 0 if false.
  */
 
-int json_array_is_homogenous_integer(const json_t *json)
+uint8_t json_array_is_homogenous_integer(const json_t *json)
 {
-    for (int i = 0; i < json_array_size(json); i++)
+    for (size_t i = 0; i < json_array_size(json); i++)
     {
         if (!json_is_integer(json_array_get(json, i)))
         {
@@ -666,9 +667,9 @@ int json_array_is_homogenous_integer(const json_t *json)
  * @return 1 if true, 0 if false.
  */
 
-int json_array_is_homogenous_real(const json_t *json)
+uint8_t json_array_is_homogenous_real(const json_t *json)
 {
-    for (int i = 0; i < json_array_size(json); i++)
+    for (size_t i = 0; i < json_array_size(json); i++)
     {
         if (!json_is_real(json_array_get(json, i)))
         {
@@ -686,7 +687,7 @@ int json_array_is_homogenous_real(const json_t *json)
  * @return 1 if true, 0 if false.
  */
 
-int json_array_check_dimensions(const json_t *json, const int *dim, int len)
+uint8_t json_array_check_dimensions(const json_t *json, const size_t *dim, size_t len)
 {
     return json_array_check_dimensions_f(json, dim, len, &json_truth);
 }
@@ -697,7 +698,7 @@ int json_array_check_dimensions(const json_t *json, const int *dim, int len)
  * @return 1.
  */
 
-int json_truth(const json_t *json)
+uint8_t json_truth(const json_t *json)
 {
     return 1;
 }
@@ -711,9 +712,9 @@ int json_truth(const json_t *json)
  * @return 1 if true, 0 if false.
  */
 
-int json_array_check_dimensions_f(const json_t *json, const int *dim, int len, int (*inner_check_function)(const json_t *json))
+uint8_t json_array_check_dimensions_f(const json_t *json, const size_t *dim, size_t len, uint8_t (*inner_check_function)(const json_t *json))
 {
-    int index;
+    size_t index;
     json_t *value;
 
     if (len == 0 && json_array_size(json) == 0)
@@ -759,7 +760,7 @@ int json_array_check_dimensions_f(const json_t *json, const int *dim, int len, i
 
 MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 {
-    int batchindex;
+    size_t batchindex;
     json_t *batchvalue;
     MTZBAT *currentBatch = NULL;
 
@@ -820,15 +821,15 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
         json_t *jsource = NULL;
         json_t *jtheta = NULL;
 
-        int detlmdimensions[] = {2, 2, 2};
-        int jdxdimensions[] = {2};
-        int vecdimensions[] = {3};
-        int celldimensions[] = {6};
-        int phixyzdimensions[] = {2, 3};
-        int scanaxdimensions[] = {3};
-        int sourcedimensions[] = {3};
-        int thetadimensions[] = {2};
-        int umatdimensions[] = {9};
+        size_t detlmdimensions[] = {2, 2, 2};
+        size_t jdxdimensions[] = {2};
+        size_t vecdimensions[] = {3};
+        size_t celldimensions[] = {6};
+        size_t phixyzdimensions[] = {2, 3};
+        size_t scanaxdimensions[] = {3};
+        size_t sourcedimensions[] = {3};
+        size_t thetadimensions[] = {2};
+        size_t umatdimensions[] = {9};
 
         json_unpack(batchvalue, "{s:o}", "Title", &jtitle);
         json_unpack(batchvalue, "{s:o}", "DatasetID", &jnbsetid);
@@ -906,7 +907,7 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (jcell && json_array_check_dimensions(jcell, celldimensions, 1) && json_array_is_homogenous_real(jcell))
         {
-            for (int i = 0; i < 6; i++)
+            for (size_t i = 0; i < 6; i++)
             {
                 currentBatch->cell[i] = json_real_value(json_array_get(jcell, i));
             }
@@ -914,7 +915,7 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (jcrydat && json_array_size(jcrydat) == 12 && json_array_is_homogenous_real(jcrydat))
         {
-            for (int i = 0; i < 12; i++)
+            for (size_t i = 0; i < 12; i++)
             {
                 currentBatch->crydat[i] = json_real_value(json_array_get(jcrydat, i));
             }
@@ -922,7 +923,7 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (jdatum && json_array_size(jdatum) == 3 && json_array_is_homogenous_real(jdatum))
         {
-            for (int i = 0; i < 3; i++)
+            for (size_t i = 0; i < 3; i++)
             {
                 currentBatch->datum[i] = json_real_value(json_array_get(jdatum, i));
             }
@@ -930,11 +931,11 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (jdetlm && json_array_check_dimensions_f(jdetlm, detlmdimensions, 3, &json_array_is_homogenous_real))
         {
-            for (int i = 0; i < 2; i++)
+            for (size_t i = 0; i < 2; i++)
             {
-                for (int j = 0; j < 2; j++)
+                for (size_t j = 0; j < 2; j++)
                 {
-                    for (int k = 0; k < 2; k++)
+                    for (size_t k = 0; k < 2; k++)
                     {
                         currentBatch->detlm[i][j][k] = json_real_value(json_array_get(json_array_get(json_array_get(jdetlm, i), j), k));
                     }
@@ -944,7 +945,7 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (jdx && json_array_check_dimensions_f(jdx, jdxdimensions, 1, &json_array_is_homogenous_real))
         {
-            for (int i = 0; i < 2; i++)
+            for (size_t i = 0; i < 2; i++)
             {
                 currentBatch->dx[i] = json_real_value(json_array_get(jdx, i));
             }
@@ -952,7 +953,7 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (je1 && json_array_check_dimensions_f(je1, vecdimensions, 1, &json_array_is_homogenous_real))
         {
-            for (int i = 0; i < 3; i++)
+            for (size_t i = 0; i < 3; i++)
             {
                 currentBatch->e1[i] = json_real_value(json_array_get(je1, i));
             }
@@ -960,7 +961,7 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (je2 && json_array_check_dimensions_f(je2, vecdimensions, 1, &json_array_is_homogenous_real))
         {
-            for (int i = 0; i < 3; i++)
+            for (size_t i = 0; i < 3; i++)
             {
                 currentBatch->e2[i] = json_real_value(json_array_get(je2, i));
             }
@@ -968,20 +969,20 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (je3 && json_array_check_dimensions_f(je3, vecdimensions, 1, &json_array_is_homogenous_real))
         {
-            for (int i = 0; i < 3; i++)
+            for (size_t i = 0; i < 3; i++)
             {
                 currentBatch->e3[i] = json_real_value(json_array_get(je3, i));
             }
         }
 
-        for (int i = 0; i < 3; i++)
+        for (size_t i = 0; i < 3; i++)
         {
             snprintf(currentBatch->gonlab[i], 9, "%s", json_string_value(json_array_get(jgonlab, i)));
         }
 
         if (jlbcell && json_array_check_dimensions_f(jlbcell, celldimensions, 1, &json_array_is_homogenous_integer))
         {
-            for (int i = 0; i < 6; i++)
+            for (size_t i = 0; i < 6; i++)
             {
                 currentBatch->lbcell[i] = json_integer_value(json_array_get(jlbcell, i));
             }
@@ -989,9 +990,9 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (jphixyz && json_array_check_dimensions_f(jphixyz, phixyzdimensions, 2, &json_array_is_homogenous_real))
         {
-            for (int i = 0; i < 2; i++)
+            for (size_t i = 0; i < 2; i++)
             {
-                for (int j = 0; j < 3; j++)
+                for (size_t j = 0; j < 3; j++)
                 {
                     currentBatch->phixyz[i][j] = json_real_value(json_array_get(json_array_get(jphixyz, i), j));
                 }
@@ -1000,7 +1001,7 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (jscanax && json_array_check_dimensions_f(jscanax, scanaxdimensions, 1, &json_array_is_homogenous_real))
         {
-            for (int i = 0; i < 3; i++)
+            for (size_t i = 0; i < 3; i++)
             {
                 currentBatch->scanax[i] = json_real_value(json_array_get(jscanax, i));
             }
@@ -1008,7 +1009,7 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (jso && json_array_check_dimensions_f(jso, sourcedimensions, 1, &json_array_is_homogenous_real))
         {
-            for (int i = 0; i < 3; i++)
+            for (size_t i = 0; i < 3; i++)
             {
                 currentBatch->so[i] = json_real_value(json_array_get(jso, i));
             }
@@ -1016,7 +1017,7 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (jsource && json_array_check_dimensions_f(jsource, sourcedimensions, 1, &json_array_is_homogenous_real))
         {
-            for (int i = 0; i < 3; i++)
+            for (size_t i = 0; i < 3; i++)
             {
                 currentBatch->source[i] = json_real_value(json_array_get(jsource, i));
             }
@@ -1024,7 +1025,7 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (jtheta && json_array_check_dimensions_f(jtheta, thetadimensions, 1, &json_array_is_homogenous_real))
         {
-            for (int i = 0; i < 2; i++)
+            for (size_t i = 0; i < 2; i++)
             {
                 currentBatch->theta[i] = json_real_value(json_array_get(jtheta, i));
             }
@@ -1032,7 +1033,7 @@ MTZ *setMtzBatches(MTZ *mtzout, const json_t *jbatches)
 
         if (jumat && json_array_check_dimensions_f(jumat, umatdimensions, 1, &json_array_is_homogenous_real))
         {
-            for (int i = 0; i < 9; i++)
+            for (size_t i = 0; i < 9; i++)
             {
                 currentBatch->umat[i] = json_real_value(json_array_get(jumat, i));
             }
@@ -1062,7 +1063,7 @@ MTZSET *setMtzSet(MTZSET *set, json_t *jset, MTZ *mtzout)
     json_t *jwavelength = NULL;
     json_t *jsetid = NULL;
     json_t *jcols = NULL;
-    int colindex;
+    size_t colindex;
     json_t *colvalue = NULL;
 
     // Metadata
@@ -1131,6 +1132,10 @@ MTZSET *setMtzSet(MTZSET *set, json_t *jset, MTZ *mtzout)
                     {
                         mtzcol->ref[dataindex] = json_real_value(datavalue);
                     }
+                    else 
+                    {
+                        mtzcol->ref[dataindex] = ccp4_nan().f;
+                    }
                 }
             }
 
@@ -1150,12 +1155,12 @@ MTZSET *setMtzSet(MTZSET *set, json_t *jset, MTZ *mtzout)
 MTZ *setMtzXtals(MTZ *mtzout, const json_t *jcrystals)
 {
     json_t *crystalvalue = NULL;
-    int crystalindex;
+    size_t crystalindex;
 
     json_array_foreach(jcrystals, crystalindex, crystalvalue)
     {
         json_t *jcell = NULL;
-        int cellindex;
+        size_t cellindex;
         json_t *cellvalue = NULL;
         json_t *jresmin = NULL;
         json_t *jresmax = NULL;
@@ -1163,7 +1168,7 @@ MTZ *setMtzXtals(MTZ *mtzout, const json_t *jcrystals)
         json_t *jpname = NULL;
         json_t *jsets = NULL;
         json_t *setvalue = NULL;
-        int setindex;
+        size_t setindex;
 
         json_unpack(crystalvalue, "{s:o}", "CellConstants", &jcell);
         json_unpack(crystalvalue, "{s:o}", "ResolutionMin", &jresmin);
@@ -1215,9 +1220,9 @@ MTZ *setMtzSymmetry(MTZ *mtzout, json_t *jsymm)
     json_t *jval = NULL;
     json_t *kval = NULL;
     json_t *jsymtyp = NULL;
-    int i, j, k;
-    int symmetryDimensions[] = {192, 4, 4};
-    int (*real_check)(json_t *);
+    size_t i, j, k;
+    size_t symmetryDimensions[] = {192, 4, 4};
+    uint8_t (*real_check)(json_t *);
 
     json_unpack(jsymm, "{s:o}", "SpaceGroupNumber", &jspcgrp);
     json_unpack(jsymm, "{s:o}", "SpaceGroupName", &jspcgrpname);
@@ -1261,13 +1266,13 @@ MTZ *setMtzSymmetry(MTZ *mtzout, json_t *jsymm)
  * @return The MTZCOL struct.
  */
 
-MTZCOL *findColumnBySource(const MTZ *mtz, int source)
+MTZCOL *findColumnBySource(const MTZ *mtz, size_t source)
 {
-    for (int i = 0; i < mtz->nxtal; i++)
+    for (size_t i = 0; i < mtz->nxtal; i++)
     {
-        for (int j = 0; j < mtz->xtal[i]->nset; j++)
+        for (size_t j = 0; j < mtz->xtal[i]->nset; j++)
         {
-            for (int k = 0; k < mtz->xtal[i]->set[j]->ncol; k++)
+            for (size_t k = 0; k < mtz->xtal[i]->set[j]->ncol; k++)
             {
                 if (mtz->xtal[i]->set[j]->col[k]->source == source)
                 {
@@ -1297,14 +1302,14 @@ MTZ *makeMtz(json_t *json)
     json_t *junknown_headers = json_array();
     int ncryst = 0;
     int *nsets = NULL;
-    int **ncols = NULL;
-    int ***nrefl = NULL;
-    int crystalindex;
+    size_t **ncols = NULL;
+    size_t ***nrefl = NULL;
+    size_t crystalindex;
     json_t *crystalvalue = NULL;
-    int nref = 0;
-    int orderindex;
+    size_t nref = 0;
+    size_t orderindex;
     json_t *ordervalue = NULL;
-    int structure_error = 0;
+    uint8_t structure_error = 0;
 
     json_unpack(json,
                 "{s:o, s:o, s:o, s:o, s:o, s:o, s:o}",
@@ -1329,18 +1334,17 @@ MTZ *makeMtz(json_t *json)
     {
         ncryst = json_array_size(jcrystals);
         nsets = malloc(ncryst * sizeof(int));
-        ncols = malloc(ncryst * sizeof(int *));
-        nrefl = malloc(ncryst * sizeof(int *));
+        ncols = malloc(ncryst * sizeof(size_t *));
+        nrefl = malloc(ncryst * sizeof(size_t *));
 
         // Count datasets for each crystal
         json_array_foreach(jcrystals, crystalindex, crystalvalue)
         {
             json_t *jsets = NULL;
-            int setindex;
+            size_t setindex;
             json_t *setvalue = NULL;
-            int *ncol = NULL;
-            int **nreflections = NULL;
-            int columnLength = -1;
+            size_t *ncol = NULL;
+            size_t **nreflections = NULL;
 
             json_unpack(crystalvalue, "{s:o}", "Datasets", &jsets);
 
@@ -1358,15 +1362,15 @@ MTZ *makeMtz(json_t *json)
                 nsets[crystalindex] = json_array_size(jsets);
 
                 // Count columns for each dataset
-                ncol = malloc(json_array_size(jsets) * sizeof(int));
-                nreflections = malloc(json_array_size(jsets) * sizeof(int *));
+                ncol = malloc(json_array_size(jsets) * sizeof(size_t));
+                nreflections = malloc(json_array_size(jsets) * sizeof(size_t *));
 
                 json_array_foreach(jsets, setindex, setvalue)
                 {
                     json_t *jcols = NULL;
-                    int colindex;
+                    size_t colindex;
                     json_t *colvalue = NULL;
-                    int *refl = NULL;
+                    size_t *reflcount = NULL;
 
                     json_unpack(setvalue, "{s:o}", "Columns", &jcols);
 
@@ -1381,7 +1385,7 @@ MTZ *makeMtz(json_t *json)
 
                     if (!structure_error)
                     {
-                        refl = malloc(json_array_size(jcols) * sizeof(int));
+                        reflcount = malloc(json_array_size(jcols) * sizeof(size_t));
 
                         ncol[setindex] = json_array_size(jcols);
 
@@ -1402,11 +1406,11 @@ MTZ *makeMtz(json_t *json)
 
                             if (!structure_error)
                             {
-                                refl[colindex] = json_array_size(dat);
+                                reflcount[colindex] = json_array_size(dat);
                             }
                         }
 
-                        nreflections[setindex] = refl;
+                        nreflections[setindex] = reflcount;
                     }
 
                     ncols[crystalindex] = ncol;
@@ -1418,18 +1422,14 @@ MTZ *makeMtz(json_t *json)
         if (!structure_error)
         {
             // Check if columns all have the same length
-            nref = -1;
-            for (int i = 0; i < ncryst; i++)
+            nref = nrefl[0][0][0];
+            for (size_t i = 0; i < ncryst; i++)
             {
-                for (int j = 0; j < nsets[i]; j++)
+                for (size_t j = 0; j < nsets[i]; j++)
                 {
-                    for (int k = 0; k < ncols[i][j]; k++)
+                    for (size_t k = 0; k < ncols[i][j]; k++)
                     {
-                        if (nref < 0)
-                        {
-                            nref = nrefl[i][j][k];
-                        }
-                        else if (nref != nrefl[i][j][k]) // Inhomogenous column lengths
+                        if (nref != nrefl[i][j][k]) // Inhomogenous column lengths
                         {
                             free(nsets);
                             free(ncols);
@@ -1465,7 +1465,7 @@ MTZ *makeMtz(json_t *json)
                 mtzout->histlines = json_array_size(jhistory);
                 mtzout->hist = MtzCallocHist(mtzout->histlines);
 
-                for (int i = 0; i < mtzout->histlines; i++)
+                for (size_t i = 0; i < mtzout->histlines; i++)
                 {
                     strncpy(mtzout->hist + i * MTZRECORDLENGTH, json_string_value(json_array_get(jhistory, i)), MTZRECORDLENGTH);
                 }
@@ -1496,12 +1496,12 @@ MTZ *makeMtz(json_t *json)
                 mtzout->unknown_headers = malloc(mtzout->n_unknown_headers * MTZRECORDLENGTH * sizeof(char));
                 memset(mtzout->unknown_headers, '\0', mtzout->n_unknown_headers * MTZRECORDLENGTH);
 
-                for (int i = 0; i < mtzout->n_unknown_headers; i++)
+                for (size_t i = 0; i < mtzout->n_unknown_headers; i++)
                 {
                     const char *header;
                     header = json_string_value(json_array_get(junknown_headers, i));
 
-                    for (int j = 0; j < MTZRECORDLENGTH; j++)
+                    for (size_t j = 0; j < MTZRECORDLENGTH; j++)
                     {
                         mtzout->unknown_headers[i * MTZRECORDLENGTH + j] = header[j];
                     }
@@ -1527,7 +1527,7 @@ MTZ *makeMtz(json_t *json)
 
 char *makeTimestamp(const char *jobstring, const char *timestring, char *timestamp)
 {
-    int timestring_index = 56;
+    size_t timestring_index = 56;
 
     timestring_index - 1 > strlen(jobstring) ? timestring_index = strlen(jobstring) + 1 : 0;
 

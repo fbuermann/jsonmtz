@@ -18,9 +18,9 @@
 
 int main(int argc, char *argv[])
 {
-    int ret;
+    uint8_t ret;
     int o;
-    options_json2mtz opts;
+    options_json2mtz_t opts;
     opterr = 0;
 
     opts.version = 0;
