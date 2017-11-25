@@ -74,7 +74,7 @@
  * @return 0 on success, error code on failure.
  */
 
-uint8_t mtz2json(const char *file_in, const char *file_out, const options_mtz2json_t *opts)
+int8_t mtz2json(const char *file_in, const char *file_out, const options_mtz2json_t *opts)
 {
     MTZ *mtzin = NULL;
     json_t *jsonmtz = NULL;
@@ -133,7 +133,7 @@ uint8_t mtz2json(const char *file_in, const char *file_out, const options_mtz2js
  * @return 0 for success, other error codes for failure.
  */
 
-uint8_t json2mtz(const char *file_in, const char *file_out, const options_json2mtz_t *opts)
+int8_t json2mtz(const char *file_in, const char *file_out, const options_json2mtz_t *opts)
 {
     MTZ *mtzout = NULL;
     json_t *json;

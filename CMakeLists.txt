@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.0)
-project(jsonmtz VERSION 1.0.8)
+project(jsonmtz VERSION 1.0.9)
 
 add_subdirectory(jansson)
 
