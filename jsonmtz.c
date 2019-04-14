@@ -16,20 +16,18 @@
  * 
  * @section Introduction
  * 
- * This program can be used to interconvert between the binary reflection file
- * format MTZ, commonly used in X-ray crystallography, and the widespread
- * human-readable data exchange format JSON. The program contains two executables.
+ * This program interconverts the binary reflection file
+ * format MTZ used in macromolecular X-ray crystallography and the
+ * data exchange format JSON. The program contains two executables.
  * mtz2json converts MTZ reflection files to JSON format, and json2mtz does the
- * reverse. jsonmtz can easily be used as a C library. 
- * This program contains two executables. mtz2json converts MTZ files to 
- * JSON format, and json2mtz does the reverse.
+ * reverse.
  * 
  * @section Usage Example usage
  * $ mtz2json <i>in.mtz</i> <i>out.json</i>
  * 
  * $ json2mtz <i>in.json</i> <i>out.mtz</i>
  * 
- * @section Building Building from Source
+ * @section Building Building from source
  * Use <a href="https://cmake.org/">CMake</a> to build from source.
  * 
  * @subsection UNIX UNIX-like operating systems
@@ -48,14 +46,9 @@
  * \> cmake -G "MinGW Makefiles" ..\n
  * \> mingw32-make
  * 
- * @subsection Library Use as a (static) library
- * <b>jsonmtz</b> can be used as a C library. Build <b>jsonmtz</b> from source. 
- * Include the <i>jsonmtz.h</i> header in your code and make sure that all 
- * <i>ccp4io</i> headers and the <i>jansson.h</i> / <i>jansson_config.h</i> 
- * headers are on the include path. Link against <i>libjsonmtz.a</i>, 
- * <i>libcmtz.a</i> and <i>libjansson.a</i>. On linux platforms, also link 
- * against <i>libm.a</i>.
- */
+ * @subsection Library Use as a library
+ * <b>jsonmtz</b> can be used as a C library. Include jsonmtz.h in your source
+ * code. The functions <i>mtz2jso</i> and <i>json2mtz</i> are the API. */
 
 #include <stdlib.h>
 #include <stdio.h>
